@@ -16,6 +16,15 @@ equation <- function(x) {
   }
 }
 
+# Wei's solution 😍
+wei <- function(x) {
+  if (x %% 2 == 0) {
+    (x * 2 - 2) / x^2
+  } else {
+    (floor(x / 2) * 2 + x) / x^2
+  }
+}
+
 # The classic
 run_odds_classic <- function(oddser, oddsee, odds_given) {
   if (oddser == oddsee) {
@@ -82,14 +91,15 @@ out <-
     odds_given = odds_given,
     p_classic = 1 / odds_given,
     p_new_simed = p_new_simed,
-    p_new_solved = purrr::map_dbl(odds_given, equation)
+    p_new_solved = purrr::map_dbl(odds_given, equation),
+    diff = p_new_solved - p_classic
   )
 
 # Plotter? i barely know her
-ggplot(out) +
-  geom_smooth(aes(x = odds_given, y = p_new_simed, colour = "with new rule"), se = FALSE, span = 0.1) +
+ggplot(out %>% slice(1:20)) +
+  geom_smooth(aes(x = odds_given, y = p_new_simed, colour = "with new rule"), se = FALSE, span = 0.5) +
   geom_point(aes(x = odds_given, y = p_new_simed)) +
-  geom_smooth(aes(x = odds_given, y = p_classic, colour = "without new rule"), se = FALSE, span = 0.1) +
+  geom_smooth(aes(x = odds_given, y = p_classic, colour = "without new rule"), se = FALSE, span = 0.5) +
   geom_point(aes(x = odds_given, y = p_classic)) +
   # scale_x_discrete(limits = odds_given) +
   scale_y_continuous(labels = scales::percent) +
