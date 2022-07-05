@@ -1,29 +1,23 @@
-library(bonanza)
+library(dplyr)
 library(ggplot2)
 
-odds_totals <- 3:30
+# Vector of odds an oddsee can give the oddser
+# The new rule doesn't work for 1 in 2 odds so start at 3
+odds_given <- 3:100
+# Number of simulation rounds
 n_rounds <- 1000000
 
-with_rule <- function(oddser, oddsee, total, verbose = FALSE) {
-  if (oddser == oddsee) {
-    if (verbose) {
-      dev.glue_message("\nGot the odds on same number ({oddser}).\n\n\n")
-    }
-    TRUE
-  } else if (oddser + oddsee == total) {
-    if (verbose) {
-      dev.glue_message("\nGot the odds on sum ({oddser} + {oddsee} = {total}).\n\n\n")
-    }
-    TRUE
+# Spoiler alert
+equation <- function(x) {
+  if (x %% 2 == 0) {
+    1 / x + (x - 2) / x^2
   } else {
-    if (verbose) {
-      message("\n Didn't get the odds\n\n\n")
-    }
-    FALSE
+    1 / x + (x - 1) / x^2
   }
 }
 
-without_rule <- function(oddser, oddsee, total) {
+# The classic
+run_odds_classic <- function(oddser, oddsee, odds_given) {
   if (oddser == oddsee) {
     TRUE
   } else {
@@ -31,41 +25,75 @@ without_rule <- function(oddser, oddsee, total) {
   }
 }
 
-sim <- function(odds_total = 10, fun = with_rule, n_rounds) {
-  oddser <- sample(1:odds_total, n_rounds, replace = TRUE)
-  oddsee <- sample(1:odds_total, n_rounds, replace = TRUE)
+# Odds with the new rule: if the guesses add up to the total, odds works
+run_odds_new <- function(oddser, oddsee, odds_given) {
+  if (oddser == oddsee) {
+    TRUE
+  } else if (oddser + oddsee == odds_given) {
+    TRUE
+  } else {
+    FALSE
+  }
+}
 
+# Do `n_rounds` of an odds with or without the new rule
+# Set the odds given by the oddsee with `odds_given`
+sim <- function(odds_given, fun = run_odds_new, n_rounds) {
+  message(glue::glue("Simulating {n_rounds} rounds of odds {odds_given}."))
+
+  # For a given odds set by the oddsee (`odds_given`), pick a random number
+  # between 1 and `odds_given` for both oddsee and oddser
+  # Do that for every round we have
+  oddser <- sample(1:odds_given, n_rounds, replace = TRUE)
+  oddsee <- sample(1:odds_given, n_rounds, replace = TRUE)
+
+  # For each round (pair of oddsee & oddser guesses), determine wither the
+  # oddser won the odds or not
   bools <-
     purrr::map2_lgl(
       .x = oddser,
       .y = oddsee,
       .f = fun,
-      total = odds_total
+      odds_given = odds_given
     )
 
+  # Find the percent of odds the oddser wins
   sum(bools) / n_rounds
 }
 
-all_with <-
+# For each number an oddsee could give to the oddser (each `odds_givens`)
+# run `n_rounds` of simulations to figure out the approx chance that the
+# oddser will win
+p_new_simed <-
   purrr::map_dbl(
-    odds_totals,
+    odds_given,
     sim,
+    fun = run_odds_new,
     n_rounds = n_rounds
   )
 
-tbl <-
+# Make a dataframe of
+# 1) odds the oddsee gave the oddser
+# 2) probability the oddser wins in the classic game
+# 3) probability the oddser wins with the new rule (simulated)
+# 4) probability the oddser wins with the new rule (with the equation)
+out <-
   tibble(
-    total = odds_totals,
-    with_new_rule = all_with,
-    without_new_rule = 1 / total
+    odds_given = odds_given,
+    p_classic = 1 / odds_given,
+    p_new_simed = p_new_simed,
+    p_new_solved = purrr::map_dbl(odds_given, equation)
   )
 
-ggplot(tbl) +
-  geom_smooth(aes(x = total, y = with_new_rule, colour = "with_new_rule"), se = FALSE) +
-  geom_point(aes(x = total, y = with_new_rule), se = FALSE) +
-  geom_smooth(aes(x = total, y = without_new_rule, colour = "without_new_rule"), se = FALSE) +
-  theme_bw() +
-  scale_x_discrete(limits = odds_totals) +
+# Plotter? i barely know her
+ggplot(out) +
+  geom_smooth(aes(x = odds_given, y = p_new_simed, colour = "with new rule"), se = FALSE, span = 0.1) +
+  geom_point(aes(x = odds_given, y = p_new_simed)) +
+  geom_smooth(aes(x = odds_given, y = p_classic, colour = "without new rule"), se = FALSE, span = 0.1) +
+  geom_point(aes(x = odds_given, y = p_classic)) +
+  # scale_x_discrete(limits = odds_given) +
   scale_y_continuous(labels = scales::percent) +
-  ggtitle("odds baby") +
-  scale_colour_manual("", breaks = c("with_new_rule", "without_new_rule"), values = c("blue", "red"))
+  scale_colour_manual("", breaks = c("with new rule", "without new rule"), values = c("#02aaf7", "#a903fc")) +
+  ggtitle("odds odds baby") +
+  labs(x = "odds given", y = "p(odds works)") +
+  theme_bw()
