@@ -16,13 +16,17 @@ equation <- function(x) {
   }
 }
 
-# Wei's solution 😍
+## Other solutions 😍
 wei <- function(x) {
   if (x %% 2 == 0) {
     (x * 2 - 2) / x^2
   } else {
     (floor(x / 2) * 2 + x) / x^2
   }
+}
+
+anya <- function(x) {
+  1 / x + 2 * floor((x - 1) / 2) / x^2
 }
 
 # The classic
